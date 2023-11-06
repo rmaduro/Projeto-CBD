@@ -46,7 +46,17 @@ IF OBJECT_ID('Production.Description', 'U') IS NOT NULL
     DROP TABLE Production.Description;
 IF OBJECT_ID('Production.Category', 'U') IS NOT NULL
     DROP TABLE Production.Category;
+IF OBJECT_ID('Production.SubCategory', 'U') IS NOT NULL
+    DROP TABLE Production.SubCategory;
 GO
+
+
+CREATE TABLE Production.SubCategory (
+  SubCategoryKey INT IDENTITY(1,1) PRIMARY KEY,
+  FrenchSubCategoryName VARCHAR(50),
+  EnglishSubCategoryName VARCHAR(50),
+  SpanishSubCategoryName VARCHAR(50),
+);
 
 -- Category Table
 CREATE TABLE Production.Category (
@@ -54,10 +64,9 @@ CREATE TABLE Production.Category (
   FrenchCategoryName VARCHAR(50),
   EnglishCategoryName VARCHAR(50),
   SpanishCategoryName VARCHAR(50),
-  ParentCategoryKey INT,
-  FOREIGN KEY (ParentCategoryKey) REFERENCES Production.Category(CategoryKey)
+  SubCategoryKey INT,
+  FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey)
 );
-
 
 -- Currency Table
 CREATE TABLE Sales.Currency (
@@ -216,10 +225,45 @@ DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory_Sales
 GO
 DROP PROCEDURE IF EXISTS Production.MigrateCategory
 GO
+DROP PROCEDURE IF EXISTS Production.MigrateSubCategory
+GO
 DROP PROCEDURE IF EXISTS Production.MigrateDescription
 GO
 DROP PROCEDURE IF EXISTS Production.MigrateProduct
 GO
+
+
+
+CREATE PROCEDURE Production.MigrateSubCategory
+AS
+BEGIN
+	INSERT INTO Production.SubCategory (FrenchSubCategoryName, EnglishSubCategoryName, SpanishSubCategoryName)
+	SELECT FrenchProductSubCategoryName, EnglishProductSubCategoryName, SpanishProductSubCategoryName
+	FROM AdventureWorksOld7.ADOld.ProductSubCategory;
+END;
+GO
+
+EXEC Production.MigrateSubCategory;
+GO
+
+
+CREATE PROCEDURE Production.MigrateCategory
+AS
+BEGIN
+    INSERT INTO Production.Category (FrenchCategoryName, EnglishCategoryName, SpanishCategoryName, SubCategoryKey)
+    SELECT p.FrenchProductCategoryName, p.EnglishProductCategoryName, p.SpanishProductCategoryName, s.SubCategoryKey
+    FROM AdventureWorksOld7.ADOld.Products p
+    INNER JOIN Production.SubCategory s ON p.ProductSubcategoryKey = s.SubCategoryKey;
+END;
+GO
+
+
+EXEC Production.MigrateCategory;
+GO
+
+
+
+
 
 
 CREATE PROCEDURE Sales.MigrateAddress
@@ -297,21 +341,6 @@ END;
 GO
 
 EXEC Sales.MigrateCustomer;
-GO
-
-
-
-CREATE PROCEDURE Production.MigrateCategory
-AS
-BEGIN
-    INSERT INTO Production.Category (FrenchCategoryName, EnglishCategoryName, SpanishCategoryName, ParentCategoryKey)
-    SELECT FrenchProductCategoryName, EnglishProductCategoryName, SpanishProductCategoryName, NULL
-    FROM AdventureWorksOld7.ADOld.Products;
-END;
-GO
-
-
-EXEC Production.MigrateCategory;
 GO
 
 
