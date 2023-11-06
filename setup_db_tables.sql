@@ -52,10 +52,12 @@ GO
 CREATE TABLE Production.Category (
   CategoryKey INT IDENTITY(1,1) PRIMARY KEY,
   FrenchCategoryName VARCHAR(50),
-  -- SubCategoryKey TINYINT,
   EnglishCategoryName VARCHAR(50),
-  SpanishCategoryName VARCHAR(50)
+  SpanishCategoryName VARCHAR(50),
+  ParentCategoryKey INT,
+  FOREIGN KEY (ParentCategoryKey) REFERENCES Production.Category(CategoryKey)
 );
+
 
 -- Currency Table
 CREATE TABLE Sales.Currency (
@@ -302,15 +304,12 @@ GO
 CREATE PROCEDURE Production.MigrateCategory
 AS
 BEGIN
-    INSERT INTO Production.Category (FrenchCategoryName, EnglishCategoryName, SpanishCategoryName)
-    SELECT FrenchProductCategoryName, EnglishProductCategoryName, SpanishProductCategoryName
+    INSERT INTO Production.Category (FrenchCategoryName, EnglishCategoryName, SpanishCategoryName, ParentCategoryKey)
+    SELECT FrenchProductCategoryName, EnglishProductCategoryName, SpanishProductCategoryName, NULL
     FROM AdventureWorksOld7.ADOld.Products;
-
-	-- INSERT INTO Production.Category (SubCategoryKey)
-	-- SELECT ProductSubcategoryKey
-	-- FROM AdventureWorksOld7.ADOld.ProductSubCategory
 END;
 GO
+
 
 EXEC Production.MigrateCategory;
 GO
@@ -326,3 +325,4 @@ END;
 GO
 
 EXEC Production.MigrateDescription;
+
