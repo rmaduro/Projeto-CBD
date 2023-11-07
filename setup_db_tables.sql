@@ -263,61 +263,6 @@ GO
 
 
 
-
-
-
-CREATE PROCEDURE Sales.MigrateAddress
-AS
-BEGIN
-
-    INSERT INTO Sales.Address (StateProvince, CountryRegion, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName)
-    SELECT  StateProvinceCode, CountryRegionCode, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName
-    FROM AdventureWorksOld7.ADOld.Customer;
-END;
-GO
-
-EXEC Sales.MigrateAddress;
-GO
-
-
-CREATE PROCEDURE Production.MigrateProduct 
-AS
-BEGIN 
-	INSERT INTO Production.Product (Size, SizeUnitMeasureCode, DaysToManufacture, Color, SizeRange, StandardCost, ListPrice, SafetyStockLevel, WeightUnitMeasureCode, FinishedGoodsFlag, Weight, Class, ProductLine, DealerPrice, ModelName, Status) 
-	SELECT Size, SizeUnitMeasureCode, DaysToManufacture, Color, SizeRange, StandardCost, ListPrice, SafetyStockLevel, WeightUnitMeasureCode, FinishedGoodsFlag, Weight, Class, ProductLine, DealerPrice, ModelName, Status 
-	FROM AdventureWorksOld7.ADOld.Products; 
-END;
-GO
-
-EXEC Production.MigrateProduct
-GO
-
-
-  CREATE PROCEDURE Sales.MigrateCurrency 
-  AS
-  BEGIN
-	INSERT INTO Sales.Currency (CurrencyAlternateKey, CurrencyName) 
-	SELECT CurrencyAlternateKey, CurrencyName FROM AdventureWorksOld7.ADOld.Currency; 
-END;
-GO
-
-EXEC Sales.MigrateCurrency; 
-GO
-
-
-CREATE PROCEDURE Sales.MigrateSales 
-AS 
-BEGIN 
-	INSERT INTO Sales.Sales (SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, TaxAmt, SalesAmount, DueDateKey, PromotionKey, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, OrderDateKey, ExtendedAmount, RevisionNumber, ShipDateKey, ShipDate) 
-	SELECT SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, TaxAmt, SalesAmount, DueDateKey, PromotionKey, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, OrderDateKey, ExtendedAmount, RevisionNumber, ShipDateKey, ShipDate
-	FROM AdventureWorksOld7.ADOld.sales7Temp; 
-END;
-GO
-
-EXEC Sales.MigrateSales; 
-GO
-
-
 CREATE PROCEDURE Sales.MigrateSalesTerritory
 AS
 BEGIN
@@ -331,17 +276,81 @@ EXEC Sales.MigrateSalesTerritory;
 GO
 
 
-CREATE PROCEDURE Sales.MigrateCustomer
+
+CREATE PROCEDURE Sales.MigrateAddress
 AS
 BEGIN
-    INSERT INTO Sales.Customer(LastName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance)
-    SELECT LastName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, Education, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance
-    FROM AdventureWorksOld7.ADOld.Customer;
+    INSERT INTO Sales.Address (StateProvince, CountryRegion, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName, SalesTerritoryKey)
+    SELECT  a.StateProvinceCode, a.CountryRegionCode, a.City, a.AddressLine1, a.AddressLine2, a.PostalCode, a.StateProvinceName, a.CountryRegionName, st.SalesTerritoryKey
+    FROM AdventureWorksOld7.ADOld.Customer a
+    INNER JOIN Sales.SalesTerritory st ON a.SalesTerritoryKey = st.SalesTerritoryKey;
 END;
 GO
 
+EXEC Sales.MigrateAddress;
+GO
+
+
+CREATE PROCEDURE Sales.MigrateCurrency 
+  AS
+  BEGIN
+	INSERT INTO Sales.Currency (CurrencyAlternateKey, CurrencyName) 
+	SELECT CurrencyAlternateKey, CurrencyName FROM AdventureWorksOld7.ADOld.Currency; 
+END;
+GO
+
+EXEC Sales.MigrateCurrency; 
+GO
+
+
+
+CREATE PROCEDURE Sales.MigrateSales 
+AS 
+BEGIN 
+    INSERT INTO Sales.Sales (SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, TaxAmt, SalesAmount, DueDateKey, PromotionKey, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, OrderDateKey, ExtendedAmount, RevisionNumber, ShipDateKey, ShipDate, CurrencyKey) 
+    SELECT s.SalesOrderNumber, s.DueDate, s.OrderDate, s.CustomerPONumber, s.CarrierTrackingNumber, s.TaxAmt, s.SalesAmount, s.DueDateKey, s.PromotionKey, s.SalesOrderLineNumber, s.DiscountAmount, s.UnitPriceDiscountPct, s.OrderQuantity, s.ProductStandardCost, s.UnitPrice, s.TotalProductCost, s.OrderDateKey, s.ExtendedAmount, s.RevisionNumber, s.ShipDateKey, s.ShipDate, c.CurrencyKey
+    FROM AdventureWorksOld7.ADOld.sales7Temp s
+    INNER JOIN Sales.Currency c ON s.CurrencyKey = c.CurrencyKey;
+END;
+GO
+
+EXEC Sales.MigrateSales;
+GO
+
+
+CREATE PROCEDURE Production.MigrateProduct
+AS
+BEGIN
+    INSERT INTO Production.Product (Size, SizeUnitMeasureCode, DaysToManufacture, Color, SizeRange, StandardCost, ListPrice, SafetyStockLevel, WeightUnitMeasureCode, FinishedGoodsFlag, Weight, Class, ProductLine, DealerPrice, ModelName, Status, CategoryKey, SalesKey)
+    SELECT p.Size, p.SizeUnitMeasureCode, p.DaysToManufacture, p.Color, p.SizeRange, p.StandardCost, p.ListPrice, p.SafetyStockLevel, p.WeightUnitMeasureCode, p.FinishedGoodsFlag, p.Weight, p.Class, p.ProductLine, p.DealerPrice, p.ModelName, p.Status, c.CategoryKey, s.SalesKey
+    FROM AdventureWorksOld7.ADOld.Products p
+    INNER JOIN Production.Category c ON p.EnglishProductCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS = c.EnglishCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS
+    INNER JOIN Sales.Sales s ON p.ListPrice = s.UnitPrice;
+END;
+GO
+
+
+EXEC Production.MigrateProduct
+GO
+
+
+
+
+
+CREATE PROCEDURE Sales.MigrateCustomer
+AS
+BEGIN
+    INSERT INTO Sales.Customer(LastName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance, AddressKey)
+    SELECT c.LastName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome, c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag, c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance, a.AddressKey
+    FROM AdventureWorksOld7.ADOld.Customer c
+    INNER JOIN Sales.Address a ON c.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS = a.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS;
+END;
+GO
+
+
 EXEC Sales.MigrateCustomer;
 GO
+
 
 
 CREATE PROCEDURE Production.MigrateDescription
