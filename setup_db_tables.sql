@@ -98,34 +98,6 @@ CREATE TABLE Sales.Address (
   FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
 );
 
--- Sales Table
-CREATE TABLE Sales.Sales (
-  SalesKey INT IDENTITY(1,1) PRIMARY KEY,
-  SalesOrderNumber VARCHAR(50),
-  DueDate DATE,
-  OrderDate DATE,
-  CustomerPONumber SMALLINT,
-  CarrierTrackingNumber TINYINT,
-  TaxAmt SMALLINT,
-  SalesAmount FLOAT,
-  DueDateKey DATE,
-  PromotionKey TINYINT,
-  SalesOrderLineNumber TINYINT,
-  DiscountAmount TINYINT,
-  UnitPriceDiscountPct TINYINT,
-  OrderQuantity TINYINT,
-  ProductStandardCost FLOAT,
-  UnitPrice FLOAT,
-  TotalProductCost FLOAT,
-  OrderDateKey DATE,
-  ExtendedAmount FLOAT,
-  RevisionNumber TINYINT,
-  ShipDateKey DATE,
-  ShipDate DATETIME2(7),
-  CurrencyKey TINYINT,
-  FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey)
-);
-
 -- Client Table
 CREATE TABLE Sales.Customer (
   CustomerKey INT IDENTITY(1,1) PRIMARY KEY,
@@ -151,22 +123,24 @@ CREATE TABLE Sales.Customer (
   FOREIGN KEY (AddressKey) REFERENCES Sales.Address(AddressKey)
 );
 
--- SalesTerritory_Sales Table
-CREATE TABLE Sales.SalesTerritory_Sales (
-  SalesTerritoryKey INT,
-  SalesKey INT,
-  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey),
-  FOREIGN KEY (SalesKey) REFERENCES Sales.Sales(SalesKey),
-  PRIMARY KEY (SalesTerritoryKey, SalesKey)
-);
-
--- Sales_Currency Table
-CREATE TABLE Sales.Sales_Currency (
-  SalesKey INT,
-  CurrencyKey TINYINT,
-  FOREIGN KEY (SalesKey) REFERENCES Sales.Sales(SalesKey),
-  FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
-  PRIMARY KEY (SalesKey, CurrencyKey)
+-- SalesOrderID Table
+CREATE TABLE Sales.SalesOrderID (
+SalesOrderNumber VARCHAR(50) PRIMARY KEY,
+DueDate DATE,                                                           
+OrderDate DATE,
+CustomerPONumber SMALLINT,
+CarrierTrackingNumber TINYINT,
+OrderDateKey DATE,
+DueDateKey DATE,
+RevisionNumber TINYINT,
+ShipDateKey DATE,
+CustomerKey INT,
+CurrencyKey TINYINT,
+ShipDate DATETIME2(7),
+SalesTerritoryKey INT,
+FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
+FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
+FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
 );
 
 -- Description Table
@@ -204,8 +178,22 @@ CREATE TABLE Production.Product (
   FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey),
 );
 
-
-
+-- SalesOrderID Table
+CREATE TABLE Sales.SalesOrderDetailID (
+SalesOrderKey INT IDENTITY(1,1) PRIMARY KEY,                                                        
+TaxAmt SMALLINT,
+SalesAmount FLOAT,                                                   
+SalesOrderLineNumber TINYINT,
+DiscountAmount TINYINT,
+UnitPriceDiscountPct TINYINT,
+OrderQuantity TINYINT,
+ProductStandardCost FLOAT,
+UnitPrice FLOAT,
+TotalProductCost FLOAT,                                                  
+ExtendedAmount FLOAT,
+ProductKey INT,
+  FOREIGN KEY (ProductKey) REFERENCES Production.Product(productKey)                                                 
+);
 -- Data Migration
 
 DROP PROCEDURE IF EXISTS Sales.MigrateAddress
