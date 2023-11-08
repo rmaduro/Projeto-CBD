@@ -1,4 +1,4 @@
--- Drop the AdventureWorks database if it exists
+﻿-- Drop the AdventureWorks database if it exists
 IF EXISTS (SELECT name FROM master.dbo.sysdatabases WHERE name = 'AdventureWorks')
     DROP DATABASE AdventureWorks;
 GO
@@ -50,23 +50,23 @@ IF OBJECT_ID('Production.SubCategory', 'U') IS NOT NULL
     DROP TABLE Production.SubCategory;
 GO
 
-
-CREATE TABLE Production.SubCategory (
-  SubCategoryKey INT IDENTITY(1,1) PRIMARY KEY,
-  FrenchSubCategoryName VARCHAR(50),
-  EnglishSubCategoryName VARCHAR(50),
-  SpanishSubCategoryName VARCHAR(50),
-);
-
 -- Category Table
 CREATE TABLE Production.Category (
   CategoryKey INT IDENTITY(1,1) PRIMARY KEY,
   FrenchCategoryName VARCHAR(50),
   EnglishCategoryName VARCHAR(50),
   SpanishCategoryName VARCHAR(50),
-  SubCategoryKey INT,
-  FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey)
 );
+
+CREATE TABLE Production.SubCategory (
+  SubCategoryKey INT IDENTITY(1,1) PRIMARY KEY,
+  FrenchSubCategoryName VARCHAR(50),
+  EnglishSubCategoryName VARCHAR(50),
+  SpanishSubCategoryName VARCHAR(50),
+  CategoryKey INT,
+  FOREIGN KEY (CategoryKey) REFERENCES Production.Category(CategoryKey)
+);
+
 
 -- Currency Table
 CREATE TABLE Sales.Currency (
@@ -169,6 +169,16 @@ CREATE TABLE Sales.Sales_Currency (
   PRIMARY KEY (SalesKey, CurrencyKey)
 );
 
+-- Description Table
+CREATE TABLE Production.Description (
+  DescriptionKey INT IDENTITY(1,1) PRIMARY KEY,
+  FrenchDescription NVARCHAR(1000), 
+  EnglishDescription NVARCHAR(255),
+  SpanishProductName NVARCHAR(255),
+  EnglishProductName NVARCHAR(255),
+  FrenchProductName NVARCHAR(255),
+);
+
 -- Product Table
 CREATE TABLE Production.Product (
   productKey INT IDENTITY(1,1) PRIMARY KEY,
@@ -188,23 +198,12 @@ CREATE TABLE Production.Product (
   DealerPrice FLOAT,
   ModelName VARCHAR(50),
   Status VARCHAR(50),
-  CategoryKey INT,
-  SalesKey INT,
-  FOREIGN KEY (CategoryKey) REFERENCES Production.Category(CategoryKey),
-  FOREIGN KEY (SalesKey) REFERENCES Sales.Sales(SalesKey)
+  DescriptionKey INT,
+  SubCategoryKey INT,
+  FOREIGN KEY (DescriptionKey) REFERENCES Production.Description(DescriptionKey),
+  FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey),
 );
 
--- Description Table
-CREATE TABLE Production.Description (
-  DescriptionKey INT IDENTITY(1,1) PRIMARY KEY,
-  FrenchDescription NVARCHAR(1000), 
-  EnglishDescription NVARCHAR(255),
-  SpanishProductName NVARCHAR(255),
-  EnglishProductName NVARCHAR(255),
-  FrenchProductName NVARCHAR(255),
-  productKey INT,
-  FOREIGN KEY (productKey) REFERENCES Production.Product(productKey)
-);
 
 
 -- Data Migration
@@ -233,122 +232,34 @@ DROP PROCEDURE IF EXISTS Production.MigrateProduct
 GO
 
 
+CREATE PROCEDURE Production.MigrateCategory
+AS
+BEGIN
+    INSERT INTO Production.Category (FrenchCategoryName, EnglishCategoryName, SpanishCategoryName)
+    SELECT DISTINCT FrenchProductCategoryName, EnglishProductCategoryName, SpanishProductCategoryName
+    FROM AdventureWorksOldData.Production.Products 
+END;
+GO
+
+EXEC Production.MigrateCategory;
+GO
+
 
 CREATE PROCEDURE Production.MigrateSubCategory
 AS
 BEGIN
-	INSERT INTO Production.SubCategory (FrenchSubCategoryName, EnglishSubCategoryName, SpanishSubCategoryName)
-	SELECT FrenchProductSubCategoryName, EnglishProductSubCategoryName, SpanishProductSubCategoryName
-	FROM AdventureWorksOld7.ADOld.ProductSubCategory;
+	INSERT INTO Production.SubCategory (FrenchSubCategoryName, EnglishSubCategoryName, SpanishSubCategoryName, CategoryKey)
+	SELECT DISTINCT s.FrenchProductSubCategoryName, s.EnglishProductSubCategoryName, s.SpanishProductSubCategoryName, c.CategoryKey
+	FROM AdventureWorksOldData.Production.ProductSubCategory s
+	JOIN AdventureWorksOldData.Production.Products p ON p.ProductSubcategoryKey  = s.ProductSubcategoryKey
+	JOIN Production.Category c ON p.EnglishProductCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS= c.EnglishCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS; 
 END;
 GO
 
 EXEC Production.MigrateSubCategory;
 GO
 
-
-CREATE PROCEDURE Production.MigrateCategory
-AS
-BEGIN
-    INSERT INTO Production.Category (FrenchCategoryName, EnglishCategoryName, SpanishCategoryName, SubCategoryKey)
-    SELECT p.FrenchProductCategoryName, p.EnglishProductCategoryName, p.SpanishProductCategoryName, s.SubCategoryKey
-    FROM AdventureWorksOld7.ADOld.Products p
-    INNER JOIN Production.SubCategory s ON p.ProductSubcategoryKey = s.SubCategoryKey;
-END;
-GO
-
-
 EXEC Production.MigrateCategory;
-GO
-
-
-
-CREATE PROCEDURE Sales.MigrateSalesTerritory
-AS
-BEGIN
-    INSERT INTO Sales.SalesTerritory (SalesTerritoryCountry, SalesTerritoryRegion, SalesTerritoryGroup)
-    SELECT SalesTerritoryCountry, SalesTerritoryRegion, SalesTerritoryGroup
-    FROM AdventureWorksOld7.ADOld.SalesTerritory;
-END;
-GO
-
-EXEC Sales.MigrateSalesTerritory;
-GO
-
-
-
-CREATE PROCEDURE Sales.MigrateAddress
-AS
-BEGIN
-    INSERT INTO Sales.Address (StateProvince, CountryRegion, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName, SalesTerritoryKey)
-    SELECT  a.StateProvinceCode, a.CountryRegionCode, a.City, a.AddressLine1, a.AddressLine2, a.PostalCode, a.StateProvinceName, a.CountryRegionName, st.SalesTerritoryKey
-    FROM AdventureWorksOld7.ADOld.Customer a
-    INNER JOIN Sales.SalesTerritory st ON a.SalesTerritoryKey = st.SalesTerritoryKey;
-END;
-GO
-
-EXEC Sales.MigrateAddress;
-GO
-
-
-CREATE PROCEDURE Sales.MigrateCurrency 
-  AS
-  BEGIN
-	INSERT INTO Sales.Currency (CurrencyAlternateKey, CurrencyName) 
-	SELECT CurrencyAlternateKey, CurrencyName FROM AdventureWorksOld7.ADOld.Currency; 
-END;
-GO
-
-EXEC Sales.MigrateCurrency; 
-GO
-
-
-
-CREATE PROCEDURE Sales.MigrateSales 
-AS 
-BEGIN 
-    INSERT INTO Sales.Sales (SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, TaxAmt, SalesAmount, DueDateKey, PromotionKey, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, OrderDateKey, ExtendedAmount, RevisionNumber, ShipDateKey, ShipDate, CurrencyKey) 
-    SELECT s.SalesOrderNumber, s.DueDate, s.OrderDate, s.CustomerPONumber, s.CarrierTrackingNumber, s.TaxAmt, s.SalesAmount, s.DueDateKey, s.PromotionKey, s.SalesOrderLineNumber, s.DiscountAmount, s.UnitPriceDiscountPct, s.OrderQuantity, s.ProductStandardCost, s.UnitPrice, s.TotalProductCost, s.OrderDateKey, s.ExtendedAmount, s.RevisionNumber, s.ShipDateKey, s.ShipDate, c.CurrencyKey
-    FROM AdventureWorksOld7.ADOld.sales7Temp s
-    INNER JOIN Sales.Currency c ON s.CurrencyKey = c.CurrencyKey;
-END;
-GO
-
-EXEC Sales.MigrateSales;
-GO
-
-
-CREATE PROCEDURE Production.MigrateProduct
-AS
-BEGIN
-    INSERT INTO Production.Product (Size, SizeUnitMeasureCode, DaysToManufacture, Color, SizeRange, StandardCost, ListPrice, SafetyStockLevel, WeightUnitMeasureCode, FinishedGoodsFlag, Weight, Class, ProductLine, DealerPrice, ModelName, Status, CategoryKey, SalesKey)
-    SELECT p.Size, p.SizeUnitMeasureCode, p.DaysToManufacture, p.Color, p.SizeRange, p.StandardCost, p.ListPrice, p.SafetyStockLevel, p.WeightUnitMeasureCode, p.FinishedGoodsFlag, p.Weight, p.Class, p.ProductLine, p.DealerPrice, p.ModelName, p.Status, c.CategoryKey, s.SalesKey
-    FROM AdventureWorksOld7.ADOld.Products p
-    INNER JOIN Production.Category c ON p.EnglishProductCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS = c.EnglishCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS
-    INNER JOIN Sales.Sales s ON p.ListPrice = s.UnitPrice;
-END;
-GO
-
-
-EXEC Production.MigrateProduct
-GO
-
-
-
-
-
-CREATE PROCEDURE Sales.MigrateCustomer
-AS
-BEGIN
-    INSERT INTO Sales.Customer(LastName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance, AddressKey)
-    SELECT c.LastName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome, c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag, c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance, a.AddressKey
-    FROM AdventureWorksOld7.ADOld.Customer c
-    INNER JOIN Sales.Address a ON c.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS = a.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS;
-END;
-GO
-
-
-EXEC Sales.MigrateCustomer;
 GO
 
 
@@ -357,10 +268,68 @@ CREATE PROCEDURE Production.MigrateDescription
 AS
 BEGIN
     INSERT INTO Production.Description (FrenchDescription, EnglishDescription, SpanishProductName, EnglishProductName, FrenchProductName)
-    SELECT FrenchDescription, EnglishDescription, SpanishProductName, EnglishProductName, FrenchProductName
-    FROM AdventureWorksOld7.ADOld.Products;
+    SELECT DISTINCT FrenchDescription, EnglishDescription, SpanishProductName, EnglishProductName, FrenchProductName
+    FROM AdventureWorksOldData.Production.Products;
 END;
 GO
 
 EXEC Production.MigrateDescription;
+GO
 
+SELECT * FROM Production.Description;
+
+DROP PROCEDURE IF EXISTS Production.MigrateProduct
+GO
+
+CREATE PROCEDURE Production.MigrateProduct
+AS
+BEGIN
+    INSERT INTO Production.Product (Size, SizeUnitMeasureCode, DaysToManufacture, Color, SizeRange, StandardCost, ListPrice, SafetyStockLevel, WeightUnitMeasureCode, FinishedGoodsFlag, Weight, Class, ProductLine, DealerPrice, ModelName, Status, SubCategoryKey, DescriptionKey)
+    SELECT DISTINCT p.Size, p.SizeUnitMeasureCode, p.DaysToManufacture, p.Color, p.SizeRange, p.StandardCost, p.ListPrice, p.SafetyStockLevel, p.WeightUnitMeasureCode, p.FinishedGoodsFlag, p.Weight, p.Class, p.ProductLine, p.DealerPrice, p.ModelName, p.Status, p.ProductSubcategoryKey, d.DescriptionKey
+    FROM AdventureWorksOldData.Production.Products p
+	JOIN Production.Description d ON p.EnglishProductName COLLATE SQL_Latin1_General_CP1_CI_AS = d.EnglishProductName COLLATE SQL_Latin1_General_CP1_CI_AS;
+
+END;
+GO
+
+EXEC Production.MigrateProduct;
+GO
+
+
+
+CREATE PROCEDURE Sales.MigrateSalesTerritory
+AS
+BEGIN
+    INSERT INTO Sales.SalesTerritory (SalesTerritoryCountry, SalesTerritoryRegion, SalesTerritoryGroup)
+    SELECT DISTINCT SalesTerritoryCountry, SalesTerritoryRegion, SalesTerritoryGroup
+    FROM AdventureWorksOldData.Sales.SalesTerritory;
+END;
+GO
+
+EXEC Sales.MigrateSalesTerritory;
+GO
+
+
+CREATE PROCEDURE Sales.MigrateAddress
+AS
+BEGIN
+    INSERT INTO Sales.Address (StateProvince, CountryRegion, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName, SalesTerritoryKey)
+    SELECT DISTINCT  a.StateProvinceCode, a.CountryRegionCode, a.City, a.AddressLine1, a.AddressLine2, a.PostalCode, a.StateProvinceName, a.CountryRegionName, st.SalesTerritoryKey
+    FROM AdventureWorksOldData.Person.Customer a
+    INNER JOIN Sales.SalesTerritory st ON a.SalesTerritoryKey = st.SalesTerritoryKey;
+END;
+GO
+
+EXEC Sales.MigrateAddress;
+GO
+
+CREATE PROCEDURE Sales.MigrateCurrency 
+  AS
+  BEGIN
+	INSERT INTO Sales.Currency (CurrencyAlternateKey, CurrencyName) 
+	SELECT DISTINCT CurrencyAlternateKey, CurrencyName FROM AdventureWorksOldData.Sales.Currency; 
+END;
+GO
+
+EXEC Sales.MigrateCurrency; 
+GO
