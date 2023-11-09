@@ -24,30 +24,31 @@ GO
 CREATE SCHEMA Production;
 GO
 
-
 -- Drop the tables if they exist
-IF OBJECT_ID('Sales.Sales_Currency', 'U') IS NOT NULL
-    DROP TABLE Sales.Sales_Currency;
-IF OBJECT_ID('Sales.SalesTerritory_Sales', 'U') IS NOT NULL
-    DROP TABLE Sales.SalesTerritory_Sales;
+IF OBJECT_ID('Sales.SalesOrderDetailID', 'U') IS NOT NULL
+    DROP TABLE Sales.SalesOrderDetailID;
+IF OBJECT_ID('Production.Product', 'U') IS NOT NULL
+    DROP TABLE Production.Product;
+IF OBJECT_ID('Production.Description', 'U') IS NOT NULL
+    DROP TABLE Production.Description;
+IF OBJECT_ID('Sales.SalesOrderID', 'U') IS NOT NULL
+    DROP TABLE Sales.SalesOrderID;
 IF OBJECT_ID('Sales.Customer', 'U') IS NOT NULL
     DROP TABLE Sales.Customer;
 IF OBJECT_ID('Sales.Address', 'U') IS NOT NULL
     DROP TABLE Sales.Address;
-IF OBJECT_ID('Production.Product', 'U') IS NOT NULL
-    DROP TABLE Production.Product;
-IF OBJECT_ID('Sales.Sales', 'U') IS NOT NULL
-    DROP TABLE Sales.Sales;
+IF OBJECT_ID('Sales.SalesTerritory_Sales', 'U') IS NOT NULL
+    DROP TABLE Sales.SalesTerritory_Sales;
+IF OBJECT_ID('Sales.Sales_Currency', 'U') IS NOT NULL
+    DROP TABLE Sales.Sales_Currency;
 IF OBJECT_ID('Sales.Currency', 'U') IS NOT NULL
     DROP TABLE Sales.Currency;
 IF OBJECT_ID('Sales.SalesTerritory', 'U') IS NOT NULL
     DROP TABLE Sales.SalesTerritory;
-IF OBJECT_ID('Production.Description', 'U') IS NOT NULL
-    DROP TABLE Production.Description;
-IF OBJECT_ID('Production.Category', 'U') IS NOT NULL
-    DROP TABLE Production.Category;
 IF OBJECT_ID('Production.SubCategory', 'U') IS NOT NULL
     DROP TABLE Production.SubCategory;
+IF OBJECT_ID('Production.Category', 'U') IS NOT NULL
+    DROP TABLE Production.Category;
 GO
 
 -- Category Table
@@ -55,9 +56,10 @@ CREATE TABLE Production.Category (
   CategoryKey INT IDENTITY(1,1) PRIMARY KEY,
   FrenchCategoryName VARCHAR(50),
   EnglishCategoryName VARCHAR(50),
-  SpanishCategoryName VARCHAR(50),
+  SpanishCategoryName VARCHAR(50)
 );
 
+-- SubCategory Table
 CREATE TABLE Production.SubCategory (
   SubCategoryKey INT IDENTITY(1,1) PRIMARY KEY,
   FrenchSubCategoryName VARCHAR(50),
@@ -66,7 +68,6 @@ CREATE TABLE Production.SubCategory (
   CategoryKey INT,
   FOREIGN KEY (CategoryKey) REFERENCES Production.Category(CategoryKey)
 );
-
 
 -- Currency Table
 CREATE TABLE Sales.Currency (
@@ -98,10 +99,12 @@ CREATE TABLE Sales.Address (
   FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
 );
 
--- Client Table
+-- Customer Table
 CREATE TABLE Sales.Customer (
   CustomerKey INT IDENTITY(1,1) PRIMARY KEY,
   LastName VARCHAR(255),
+  MiddleName VARCHAR(50),
+  FirstName VARCHAR(50),
   NameStyle VARCHAR(50),
   BirthDate DATE,
   MaritalStatus VARCHAR(50),
@@ -109,7 +112,6 @@ CREATE TABLE Sales.Customer (
   EmailAddress VARCHAR(50),
   YearlyIncome INT,
   Title VARCHAR(10),
-  MiddleName VARCHAR(50),
   TotalChildren TINYINT,
   NumberChildrenAtHome TINYINT,
   EducationLevel VARCHAR(50),
@@ -125,37 +127,37 @@ CREATE TABLE Sales.Customer (
 
 -- SalesOrderID Table
 CREATE TABLE Sales.SalesOrderID (
-SalesOrderNumber VARCHAR(50) PRIMARY KEY,
-DueDate DATE,                                                           
-OrderDate DATE,
-CustomerPONumber SMALLINT,
-CarrierTrackingNumber TINYINT,
-OrderDateKey DATE,
-DueDateKey DATE,
-RevisionNumber TINYINT,
-ShipDateKey DATE,
-CustomerKey INT,
-CurrencyKey TINYINT,
-ShipDate DATETIME2(7),
-SalesTerritoryKey INT,
-FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
-FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
-FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
+  SalesOrderNumber VARCHAR(50) PRIMARY KEY,
+  DueDate DATE,
+  OrderDate DATE,
+  CustomerPONumber SMALLINT,
+  CarrierTrackingNumber TINYINT,
+  OrderDateKey DATE,
+  DueDateKey DATE,
+  RevisionNumber TINYINT,
+  ShipDateKey DATE,
+  CustomerKey INT,
+  CurrencyKey TINYINT,
+  ShipDate DATETIME2(7),
+  SalesTerritoryKey INT,
+  FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
+  FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
+  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
 );
 
 -- Description Table
 CREATE TABLE Production.Description (
   DescriptionKey INT IDENTITY(1,1) PRIMARY KEY,
-  FrenchDescription NVARCHAR(1000), 
+  FrenchDescription NVARCHAR(1000),
   EnglishDescription NVARCHAR(255),
   SpanishProductName NVARCHAR(255),
   EnglishProductName NVARCHAR(255),
-  FrenchProductName NVARCHAR(255),
+  FrenchProductName NVARCHAR(255)
 );
 
 -- Product Table
 CREATE TABLE Production.Product (
-  productKey INT IDENTITY(1,1) PRIMARY KEY,
+  ProductKey INT IDENTITY(1,1) PRIMARY KEY,
   Size VARCHAR(50),
   SizeUnitMeasureCode VARCHAR(50),
   DaysToManufacture TINYINT,
@@ -175,25 +177,26 @@ CREATE TABLE Production.Product (
   DescriptionKey INT,
   SubCategoryKey INT,
   FOREIGN KEY (DescriptionKey) REFERENCES Production.Description(DescriptionKey),
-  FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey),
+  FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey)
 );
 
--- SalesOrderID Table
+-- SalesOrderDetailID Table
 CREATE TABLE Sales.SalesOrderDetailID (
-SalesOrderKey INT IDENTITY(1,1) PRIMARY KEY,                                                        
-TaxAmt SMALLINT,
-SalesAmount FLOAT,                                                   
-SalesOrderLineNumber TINYINT,
-DiscountAmount TINYINT,
-UnitPriceDiscountPct TINYINT,
-OrderQuantity TINYINT,
-ProductStandardCost FLOAT,
-UnitPrice FLOAT,
-TotalProductCost FLOAT,                                                  
-ExtendedAmount FLOAT,
-ProductKey INT,
-  FOREIGN KEY (ProductKey) REFERENCES Production.Product(productKey)                                                 
+  SalesOrderKey INT IDENTITY(1,1) PRIMARY KEY,
+  TaxAmt SMALLINT,
+  SalesAmount FLOAT,
+  SalesOrderLineNumber TINYINT,
+  DiscountAmount TINYINT,
+  UnitPriceDiscountPct TINYINT,
+  OrderQuantity TINYINT,
+  ProductStandardCost FLOAT,
+  UnitPrice FLOAT,
+  TotalProductCost FLOAT,
+  ExtendedAmount FLOAT,
+  ProductKey INT,
+  FOREIGN KEY (ProductKey) REFERENCES Production.Product(ProductKey)
 );
+
 -- Data Migration
 
 DROP PROCEDURE IF EXISTS Sales.MigrateAddress
@@ -204,7 +207,7 @@ DROP PROCEDURE IF EXISTS Sales.MigrateCurrency
 GO
 DROP PROCEDURE IF EXISTS Sales.MigrateSales
 GO
-DROP PROCEDURE IF EXISTS Sales.MigrateSales_Currency
+DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderID
 GO
 DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory
 GO
@@ -240,7 +243,7 @@ BEGIN
 	SELECT DISTINCT s.FrenchProductSubCategoryName, s.EnglishProductSubCategoryName, s.SpanishProductSubCategoryName, c.CategoryKey
 	FROM AdventureWorksOldData.Production.ProductSubCategory s
 	JOIN AdventureWorksOldData.Production.Products p ON p.ProductSubcategoryKey  = s.ProductSubcategoryKey
-	JOIN Production.Category c ON p.EnglishProductCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS= c.EnglishCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS; 
+	JOIN Production.Category c ON p.EnglishProductCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS = c.EnglishCategoryName COLLATE SQL_Latin1_General_CP1_CI_AS; 
 END;
 GO
 
@@ -321,3 +324,26 @@ GO
 
 EXEC Sales.MigrateCurrency; 
 GO
+
+
+
+
+CREATE PROCEDURE Sales.MigrateCustomer
+AS
+BEGIN
+    INSERT INTO Sales.Customer(LastName, FirstName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance, AddressKey)
+    SELECT DISTINCT c.LastName, c.FirstName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome, c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag, c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance, a.AddressKey
+    FROM AdventureWorksOldData.Person.Customer c
+    JOIN Sales.Address a ON c.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS = a.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS;
+END;
+GO
+
+
+EXEC Sales.MigrateCustomer;
+GO
+
+SELECT * FROM AdventureWorks.Sales.Customer
+Where FirstName like 'Eduardo' and LastName like 'Adams';
+
+SELECT * FROM Sales.Address
+WHERE StateProvince like '17';

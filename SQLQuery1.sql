@@ -17,22 +17,4 @@ EXEC Sales.MigrateSales;
 GO
 
 
-5
 
-SELECT * FROM Production.Product;
-SELECT * FROM Production.Category;
-
-
-CREATE PROCEDURE Sales.MigrateCustomer
-AS
-BEGIN
-    INSERT INTO Sales.Customer(LastName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance, AddressKey)
-    SELECT c.LastName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome, c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag, c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance, a.AddressKey
-    FROM AdventureWorksOldData.Person.Customer c
-    INNER JOIN Sales.Address a ON c.AddressLine1 = a.AddressLine1;
-END;
-GO
-
-
-EXEC Sales.MigrateCustomer;
-GO
