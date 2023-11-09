@@ -135,10 +135,10 @@ CREATE TABLE Sales.SalesOrderID (
   OrderDateKey DATE,
   DueDateKey DATE,
   RevisionNumber TINYINT,
+  ShipDate DATETIME2(7),
   ShipDateKey DATE,
   CustomerKey INT,
   CurrencyKey TINYINT,
-  ShipDate DATETIME2(7),
   SalesTerritoryKey INT,
   FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
   FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
@@ -342,8 +342,20 @@ GO
 EXEC Sales.MigrateCustomer;
 GO
 
-SELECT * FROM AdventureWorks.Sales.Customer
-Where FirstName like 'Eduardo' and LastName like 'Adams';
 
-SELECT * FROM Sales.Address
-WHERE StateProvince like '17';
+
+CREATE PROCEDURE Sales.MigrateSalesOrderID
+AS
+BEGIN
+	INSERT INTO Sales.SalesOrderID (SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, OrderDateKey, DueDateKey, RevisionNumber, ShipDateKey, ShipDate, CustomerKey, CurrencyKey, SalesTerritoryKey)
+	SELECT DISTINCT s.SalesOrderNumber, s.DueDate, s.OrderDate, s.CustomerPONumber, s.CarrierTrackingNumber, s.OrderDateKey, s.DueDateKey, s.RevisionNumber, s.ShipDateKey, s.ShipDate, s.CustomerKey, s.CurrencyKey, s.SalesTerritoryKey 
+	FROM AdventureWorksOldData.Sales.Sales7 s
+	JOIN Sales.Customer c ON s.CustomerKey = c.CustomerKey 
+	JOIN Sales.Currency cy ON s.CurrencyKey = cy.CurrencyKey
+	JOIN Sales.SalesTerritory st ON s.SalesTerritoryKey = st.SalesTerritoryKey ;
+END;
+GO
+
+
+EXEC Sales.MigrateSalesOrderID
+go
