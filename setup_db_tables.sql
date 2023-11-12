@@ -118,26 +118,6 @@ CREATE TABLE Sales.CustomerAddress (
     CONSTRAINT FK_CustomerAddress_Address FOREIGN KEY (AddressKey) REFERENCES Sales.Address(AddressKey)
 );
 
--- SalesOrderHeader Table
-CREATE TABLE Sales.SalesOrderHeader (
-  SalesOrderNumber VARCHAR(50) PRIMARY KEY,
-  DueDate DATE,
-  OrderDate DATE,
-  CustomerPONumber SMALLINT,
-  CarrierTrackingNumber TINYINT,
-  OrderDateKey DATE,
-  DueDateKey DATE,
-  RevisionNumber TINYINT,
-  ShipDate DATETIME2(7),
-  ShipDateKey DATE,
-  CustomerKey INT,
-  CurrencyKey TINYINT,
-  SalesTerritoryKey INT,
-  FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
-  FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
-  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
-);
-
 -- Description Table
 CREATE TABLE Production.Description (
   DescriptionKey INT IDENTITY(1,1) PRIMARY KEY,
@@ -173,9 +153,30 @@ CREATE TABLE Production.Product (
   FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey)
 );
 
+-- SalesOrderHeader Table
+CREATE TABLE Sales.SalesOrderHeader (
+  SalesOrderNumber VARCHAR(50) PRIMARY KEY,
+  DueDate DATE,
+  OrderDate DATE,
+  CustomerPONumber SMALLINT,
+  CarrierTrackingNumber TINYINT,
+  OrderDateKey DATE,
+  DueDateKey DATE,
+  RevisionNumber TINYINT,
+  ShipDate DATETIME2(7),
+  ShipDateKey DATE,
+  CustomerKey INT,
+  CurrencyKey TINYINT,
+  SalesTerritoryKey INT,
+  FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
+  FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
+  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
+);
+
 -- SalesOrderDetail Table
 CREATE TABLE Sales.SalesOrderDetail (
   SalesOrderKey INT IDENTITY(1,1) PRIMARY KEY,
+  SalesOrderNumber VARCHAR(50),
   TaxAmt INT,
   SalesAmount FLOAT,
   SalesOrderLineNumber TINYINT,
@@ -187,8 +188,10 @@ CREATE TABLE Sales.SalesOrderDetail (
   TotalProductCost FLOAT,
   ExtendedAmount FLOAT,
   ProductKey INT,
-  FOREIGN KEY (ProductKey) REFERENCES Production.Product(ProductKey)
+  FOREIGN KEY (ProductKey) REFERENCES Production.Product(ProductKey),
+  FOREIGN KEY (SalesOrderNumber) REFERENCES Sales.SalesOrderHeader(SalesOrderNumber)
 );
+
 
 -- Data Migration
 
@@ -340,14 +343,10 @@ BEGIN
 END;
 GO
 
-
-
-
 EXEC Sales.MigrateCustomerAddress;
 GO
-
-SELECT * FROM Sales.CustomerAddress;
-
+ 
+ 
 CREATE PROCEDURE Sales.MigrateSalesOrderHeader
 AS
 BEGIN
@@ -362,23 +361,22 @@ GO
 
 
 EXEC Sales.MigrateSalesOrderHeader
-GO 
+GO
+
 
 CREATE PROCEDURE Sales.MigrateSalesOrderDetail
 AS
 BEGIN
-    INSERT INTO Sales.SalesOrderDetail(TaxAmt,
-        SalesAmount, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, ExtendedAmount, ProductKey )
-    SELECT s.TaxAmt, s.SalesAmount, s.SalesOrderLineNumber, s.DiscountAmount, s.UnitPriceDiscountPct, s.OrderQuantity, s.ProductStandardCost, s.UnitPrice, s.TotalProductCost, s.ExtendedAmount, p.ProductKey
-    FROM
-        AdventureWorksOldData.Sales.Sales7 s
-		JOIN Production.Product p ON s.ProductKey = p.ProductKey;
+    INSERT INTO Sales.SalesOrderDetail (SalesOrderNumber, TaxAmt, SalesAmount, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, ExtendedAmount, ProductKey)
+    SELECT s.SalesOrderNumber, s.TaxAmt, s.SalesAmount, s.SalesOrderLineNumber, s.DiscountAmount, s.UnitPriceDiscountPct, s.OrderQuantity, s.ProductStandardCost, s.UnitPrice, s.TotalProductCost, s.ExtendedAmount, p.ProductKey
+    FROM AdventureWorksOldData.Sales.Sales7 s
+    JOIN Production.Product p ON s.ProductKey = p.ProductKey
+    JOIN Sales.SalesOrderHeader soh ON s.SalesOrderNumber COLLATE SQL_Latin1_General_CP1_CI_AS= soh.SalesOrderNumber COLLATE SQL_Latin1_General_CP1_CI_AS;
 END;
-GO
+
 
 EXEC Sales.MigrateSalesOrderDetail;
 GO
-
 
 -- Category Table
 SELECT * FROM Production.Category;
