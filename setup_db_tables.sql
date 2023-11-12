@@ -25,31 +25,16 @@ CREATE SCHEMA Production;
 GO
 
 -- Drop the tables if they exist
-IF OBJECT_ID('Sales.SalesOrderDetailID', 'U') IS NOT NULL
-    DROP TABLE Sales.SalesOrderDetailID;
-IF OBJECT_ID('Production.Product', 'U') IS NOT NULL
-    DROP TABLE Production.Product;
-IF OBJECT_ID('Production.Description', 'U') IS NOT NULL
-    DROP TABLE Production.Description;
-IF OBJECT_ID('Sales.SalesOrderID', 'U') IS NOT NULL
-    DROP TABLE Sales.SalesOrderID;
-IF OBJECT_ID('Sales.Customer', 'U') IS NOT NULL
-    DROP TABLE Sales.Customer;
-IF OBJECT_ID('Sales.Address', 'U') IS NOT NULL
-    DROP TABLE Sales.Address;
-IF OBJECT_ID('Sales.SalesTerritory_Sales', 'U') IS NOT NULL
-    DROP TABLE Sales.SalesTerritory_Sales;
-IF OBJECT_ID('Sales.Sales_Currency', 'U') IS NOT NULL
-    DROP TABLE Sales.Sales_Currency;
-IF OBJECT_ID('Sales.Currency', 'U') IS NOT NULL
-    DROP TABLE Sales.Currency;
-IF OBJECT_ID('Sales.SalesTerritory', 'U') IS NOT NULL
-    DROP TABLE Sales.SalesTerritory;
-IF OBJECT_ID('Production.SubCategory', 'U') IS NOT NULL
-    DROP TABLE Production.SubCategory;
-IF OBJECT_ID('Production.Category', 'U') IS NOT NULL
-    DROP TABLE Production.Category;
-GO
+DROP TABLE IF EXISTS Sales.SalesOrderDetail;
+DROP TABLE IF EXISTS Production.Product;
+DROP TABLE IF EXISTS Production.Description;
+DROP TABLE IF EXISTS Sales.SalesOrderHeader;
+DROP TABLE IF EXISTS Sales.Customer;
+DROP TABLE IF EXISTS Sales.Address;
+DROP TABLE IF EXISTS Sales.SalesTerritory;
+DROP TABLE IF EXISTS Sales.Currency;
+DROP TABLE IF EXISTS Production.SubCategory;
+DROP TABLE IF EXISTS Production.Category;
 
 -- Category Table
 CREATE TABLE Production.Category (
@@ -125,8 +110,8 @@ CREATE TABLE Sales.Customer (
   FOREIGN KEY (AddressKey) REFERENCES Sales.Address(AddressKey)
 );
 
--- SalesOrderID Table
-CREATE TABLE Sales.SalesOrderID (
+-- SalesOrderHeader Table
+CREATE TABLE Sales.SalesOrderHeader (
   SalesOrderNumber VARCHAR(50) PRIMARY KEY,
   DueDate DATE,
   OrderDate DATE,
@@ -180,10 +165,10 @@ CREATE TABLE Production.Product (
   FOREIGN KEY (SubCategoryKey) REFERENCES Production.SubCategory(SubCategoryKey)
 );
 
--- SalesOrderDetailID Table
-CREATE TABLE Sales.SalesOrderDetailID (
+-- SalesOrderDetail Table
+CREATE TABLE Sales.SalesOrderDetail (
   SalesOrderKey INT IDENTITY(1,1) PRIMARY KEY,
-  TaxAmt SMALLINT,
+  TaxAmt INT,
   SalesAmount FLOAT,
   SalesOrderLineNumber TINYINT,
   DiscountAmount TINYINT,
@@ -199,29 +184,17 @@ CREATE TABLE Sales.SalesOrderDetailID (
 
 -- Data Migration
 
-DROP PROCEDURE IF EXISTS Sales.MigrateAddress
+DROP PROCEDURE IF EXISTS Production.MigrateCategory;
+DROP PROCEDURE IF EXISTS Production.MigrateSubCategory;
+DROP PROCEDURE IF EXISTS Production.MigrateDescription;
+DROP PROCEDURE IF EXISTS Production.MigrateProduct;
+DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory;
+DROP PROCEDURE IF EXISTS Sales.MigrateAddress;
+DROP PROCEDURE IF EXISTS Sales.MigrateCurrency;
+DROP PROCEDURE IF EXISTS Sales.MigrateCustomer;
+DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderHeader;
+DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderDetail;
 GO
-DROP PROCEDURE IF EXISTS Sales.MigrateCustomer
-GO
-DROP PROCEDURE IF EXISTS Sales.MigrateCurrency
-GO
-DROP PROCEDURE IF EXISTS Sales.MigrateSales
-GO
-DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderID
-GO
-DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory
-GO
-DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory_Sales
-GO
-DROP PROCEDURE IF EXISTS Production.MigrateCategory
-GO
-DROP PROCEDURE IF EXISTS Production.MigrateSubCategory
-GO
-DROP PROCEDURE IF EXISTS Production.MigrateDescription
-GO
-DROP PROCEDURE IF EXISTS Production.MigrateProduct
-GO
-
 
 CREATE PROCEDURE Production.MigrateCategory
 AS
@@ -344,10 +317,10 @@ GO
 
 
 
-CREATE PROCEDURE Sales.MigrateSalesOrderID
+CREATE PROCEDURE Sales.MigrateSalesOrderHeader
 AS
 BEGIN
-	INSERT INTO Sales.SalesOrderID (SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, OrderDateKey, DueDateKey, RevisionNumber, ShipDateKey, ShipDate, CustomerKey, CurrencyKey, SalesTerritoryKey)
+	INSERT INTO Sales.SalesOrderHeader(SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, OrderDateKey, DueDateKey, RevisionNumber, ShipDateKey, ShipDate, CustomerKey, CurrencyKey, SalesTerritoryKey)
 	SELECT DISTINCT s.SalesOrderNumber, s.DueDate, s.OrderDate, s.CustomerPONumber, s.CarrierTrackingNumber, s.OrderDateKey, s.DueDateKey, s.RevisionNumber, s.ShipDateKey, s.ShipDate, s.CustomerKey, s.CurrencyKey, s.SalesTerritoryKey 
 	FROM AdventureWorksOldData.Sales.Sales7 s
 	JOIN Sales.Customer c ON s.CustomerKey = c.CustomerKey 
@@ -357,5 +330,81 @@ END;
 GO
 
 
-EXEC Sales.MigrateSalesOrderID
-go
+EXEC Sales.MigrateSalesOrderHeader
+GO 
+
+CREATE PROCEDURE Sales.MigrateSalesOrderDetail
+AS
+BEGIN
+    INSERT INTO Sales.SalesOrderDetail(TaxAmt,
+        SalesAmount, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, ExtendedAmount, ProductKey )
+    SELECT s.TaxAmt, s.SalesAmount, s.SalesOrderLineNumber, s.DiscountAmount, s.UnitPriceDiscountPct, s.OrderQuantity, s.ProductStandardCost, s.UnitPrice, s.TotalProductCost, s.ExtendedAmount, p.ProductKey
+    FROM
+        AdventureWorksOldData.Sales.Sales7 s
+		JOIN Production.Product p ON s.ProductKey = p.ProductKey;
+END;
+GO
+
+EXEC Sales.MigrateSalesOrderDetail;
+GO
+
+
+-- Category Table
+SELECT * FROM Production.Category;
+
+-- SubCategory Table
+SELECT * FROM Production.SubCategory;
+
+-- Currency Table
+SELECT * FROM Sales.Currency;
+
+-- SalesTerritory Table
+SELECT * FROM Sales.SalesTerritory;
+
+-- Address Table
+SELECT * FROM Sales.Address;
+
+-- Customer Table
+SELECT * FROM Sales.Customer;
+
+-- SalesOrderHeader Table
+SELECT * FROM Sales.SalesOrderHeader;
+
+-- Description Table
+SELECT * FROM Production.Description;
+
+-- Product Table
+SELECT * FROM Production.Product;
+
+-- SalesOrderDetail Table
+SELECT * FROM Sales.SalesOrderDetail;
+
+-- Count records in Category Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Production.Category;
+
+-- Count records in SubCategory Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Production.SubCategory;
+
+-- Count records in Currency Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.Currency;
+
+-- Count records in SalesTerritory Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.SalesTerritory;
+
+-- Count records in Address Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.Address;
+
+-- Count records in Customer Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.Customer;
+
+-- Count records in SalesOrderHeader Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.SalesOrderHeader;
+
+-- Count records in Description Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Production.Description;
+
+-- Count records in Product Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Production.Product;
+
+-- Count records in SalesOrderDetail Table
+SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.SalesOrderDetail;
