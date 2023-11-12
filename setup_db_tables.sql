@@ -31,6 +31,7 @@ DROP TABLE IF EXISTS Production.Description;
 DROP TABLE IF EXISTS Sales.SalesOrderHeader;
 DROP TABLE IF EXISTS Sales.Customer;
 DROP TABLE IF EXISTS Sales.Address;
+DROP TABLE IF EXISTS Sales.CustomerAddress;
 DROP TABLE IF EXISTS Sales.SalesTerritory;
 DROP TABLE IF EXISTS Sales.Currency;
 DROP TABLE IF EXISTS Production.SubCategory;
@@ -81,7 +82,7 @@ CREATE TABLE Sales.Address (
   StateProvinceName VARCHAR(255),
   CountryRegionName VARCHAR(255),
   SalesTerritoryKey INT,
-  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
+  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey),
 );
 
 -- Customer Table
@@ -105,9 +106,16 @@ CREATE TABLE Sales.Customer (
   NumberCarsOwned TINYINT,
   Phone VARCHAR(50),
   DateFirstPurchase DATE,
-  CommuteDistance VARCHAR(50),
-  AddressKey INT,
-  FOREIGN KEY (AddressKey) REFERENCES Sales.Address(AddressKey)
+  CommuteDistance VARCHAR(50)
+);
+
+-- CustomerAddress Table
+CREATE TABLE Sales.CustomerAddress (
+    CustomerAddressKey INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerKey INT,
+    AddressKey INT,
+    CONSTRAINT FK_CustomerAddress_Customer FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
+    CONSTRAINT FK_CustomerAddress_Address FOREIGN KEY (AddressKey) REFERENCES Sales.Address(AddressKey)
 );
 
 -- SalesOrderHeader Table
@@ -194,6 +202,7 @@ DROP PROCEDURE IF EXISTS Sales.MigrateCurrency;
 DROP PROCEDURE IF EXISTS Sales.MigrateCustomer;
 DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderHeader;
 DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderDetail;
+DROP PROCEDURE IF EXISTS Sales.MigrateCustomerAddress;
 GO
 
 CREATE PROCEDURE Production.MigrateCategory
@@ -300,22 +309,44 @@ GO
 
 
 
-
+-- Migration Procedure for Customer
 CREATE PROCEDURE Sales.MigrateCustomer
 AS
 BEGIN
-    INSERT INTO Sales.Customer(LastName, FirstName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance, AddressKey)
-    SELECT DISTINCT c.LastName, c.FirstName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome, c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag, c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance, a.AddressKey
-    FROM AdventureWorksOldData.Person.Customer c
-    JOIN Sales.Address a ON c.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS = a.AddressLine1 COLLATE SQL_Latin1_General_CP1_CI_AS;
+    INSERT INTO Sales.Customer (LastName, FirstName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance)
+    SELECT DISTINCT
+        c.LastName, c.FirstName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome,
+        c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag,
+        c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance
+    FROM
+        AdventureWorksOldData.Person.Customer c;
 END;
 GO
-
 
 EXEC Sales.MigrateCustomer;
 GO
 
+-- Migration Procedure for CustomerAddress
+CREATE PROCEDURE Sales.MigrateCustomerAddress
+AS
+BEGIN
+	INSERT INTO Sales.CustomerAddress(CustomerKey)
+		SELECT sc.CustomerKey FROM Sales.Customer sc
+		JOIN Sales.Customer c ON sc.CustomerKey = c.CustomerKey; 
 
+	INSERT INTO Sales.CustomerAddress(AddressKey)
+		SELECT a.AddressKey FROM Sales.Address a
+		JOIN Sales.Address ad ON ad.AddressKey = a.AddressKey; 
+END;
+GO
+
+
+
+
+EXEC Sales.MigrateCustomerAddress;
+GO
+
+SELECT * FROM Sales.CustomerAddress;
 
 CREATE PROCEDURE Sales.MigrateSalesOrderHeader
 AS
@@ -366,6 +397,8 @@ SELECT * FROM Sales.Address;
 
 -- Customer Table
 SELECT * FROM Sales.Customer;
+
+SELECT * FROM Sales.CustomerAddress;
 
 -- SalesOrderHeader Table
 SELECT * FROM Sales.SalesOrderHeader;
