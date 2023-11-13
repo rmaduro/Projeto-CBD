@@ -235,9 +235,6 @@ GO
 EXEC Production.MigrateSubCategory;
 GO
 
-EXEC Production.MigrateCategory;
-GO
-
 
 
 CREATE PROCEDURE Production.MigrateDescription
@@ -252,10 +249,7 @@ GO
 EXEC Production.MigrateDescription;
 GO
 
-SELECT * FROM Production.Description;
 
-DROP PROCEDURE IF EXISTS Production.MigrateProduct
-GO
 
 CREATE PROCEDURE Production.MigrateProduct
 AS
@@ -299,6 +293,8 @@ GO
 EXEC Sales.MigrateAddress;
 GO
 
+
+
 CREATE PROCEDURE Sales.MigrateCurrency 
   AS
   BEGIN
@@ -329,6 +325,8 @@ GO
 EXEC Sales.MigrateCustomer;
 GO
 
+
+
 -- Migration Procedure for CustomerAddress
 CREATE PROCEDURE Sales.MigrateCustomerAddress
 AS
@@ -347,6 +345,7 @@ EXEC Sales.MigrateCustomerAddress;
 GO
  
  
+
 CREATE PROCEDURE Sales.MigrateSalesOrderHeader
 AS
 BEGIN
@@ -364,6 +363,7 @@ EXEC Sales.MigrateSalesOrderHeader
 GO
 
 
+
 CREATE PROCEDURE Sales.MigrateSalesOrderDetail
 AS
 BEGIN
@@ -373,10 +373,13 @@ BEGIN
     JOIN Production.Product p ON s.ProductKey = p.ProductKey
     JOIN Sales.SalesOrderHeader soh ON s.SalesOrderNumber COLLATE SQL_Latin1_General_CP1_CI_AS= soh.SalesOrderNumber COLLATE SQL_Latin1_General_CP1_CI_AS;
 END;
-
+GO
 
 EXEC Sales.MigrateSalesOrderDetail;
 GO
+
+
+
 
 -- Category Table
 SELECT * FROM Production.Category;
