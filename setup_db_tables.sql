@@ -410,6 +410,8 @@ SELECT * FROM Production.Product;
 -- SalesOrderDetail Table
 SELECT * FROM Sales.SalesOrderDetail;
 
+
+
 -- Count records in Category Table
 SELECT COUNT(*) AS NumeroDeRegistos FROM Production.Category;
 

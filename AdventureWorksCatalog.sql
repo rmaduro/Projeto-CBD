@@ -1,5 +1,3 @@
-USE AdventureWorks;
-GO
 
 -- Drop the table if it exists
 IF OBJECT_ID('SchemaHistory', 'U') IS NOT NULL
@@ -69,3 +67,104 @@ END;
 EXEC dbo.GenerateSchemaHistory;
 
 SELECT * FROM  SchemaHistory;
+
+GO
+-- Criação da view que apresenta os dados relativos à execução mais recente
+CREATE VIEW dbo.LatestSchemaHistory
+AS
+SELECT
+    s.*
+FROM
+    SchemaHistory s
+INNER JOIN
+    (
+        SELECT
+            TableName,
+            MAX(ChangeDate) AS LatestChangeDate
+        FROM
+            SchemaHistory
+        GROUP BY
+            TableName
+    ) latest ON s.TableName = latest.TableName AND s.ChangeDate = latest.LatestChangeDate;
+
+	GO
+
+	SELECT * FROM dbo.LatestSchemaHistory;
+
+
+
+
+
+
+
+
+
+
+	go
+
+
+
+
+-- DROP existing procedure
+DROP PROCEDURE IF EXISTS dbo.GetRecordCount;
+GO
+
+-- CREATE the modified procedure
+CREATE PROCEDURE dbo.GetRecordCount
+    @TableName NVARCHAR(255)
+AS
+BEGIN
+    DECLARE @Sql NVARCHAR(MAX);
+    DECLARE @RecordCount INT;
+
+    SET @Sql = 'SELECT @RecordCount = COUNT(*) FROM ' + @TableName;
+     EXEC sp_executesql @Sql, N'@RecordCount INT OUTPUT', @RecordCount OUTPUT;
+
+     SELECT @TableName, @RecordCount
+
+END;
+GO
+
+-- DROP existing procedure
+DROP PROCEDURE IF EXISTS dbo.GetRecordCountAllTables;
+GO
+
+-- CREATE the modified procedure
+CREATE PROCEDURE dbo.GetRecordCountAllTables
+AS
+BEGIN
+    DECLARE @TableName NVARCHAR(255);
+    DECLARE @Sql NVARCHAR(MAX);
+
+    -- Criar tabela temporária para armazenar os resultados
+    CREATE TABLE #TempResults (
+        TableName NVARCHAR(255),
+        RecordCount INT
+    );
+
+    DECLARE table_cursor CURSOR FOR
+    SELECT TABLE_NAME
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_TYPE = 'BASE TABLE';
+
+    OPEN table_cursor;
+    FETCH NEXT FROM table_cursor INTO @TableName;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @Sql = '
+            INSERT INTO #TempResults
+            EXEC GetRecordCount ''' + @TableName + '''
+        ';
+        EXEC sp_executesql @Sql;
+        FETCH NEXT FROM table_cursor INTO @TableName;
+    END
+
+    SELECT * FROM #TempResults;
+    DROP TABLE #TempResults;
+    CLOSE table_cursor;
+    DEALLOCATE table_cursor;
+END;
+
+
+EXEC dbo.GetRecordCountAllTables;
