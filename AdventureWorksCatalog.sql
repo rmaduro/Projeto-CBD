@@ -13,8 +13,7 @@ CREATE TABLE SchemaHistory (
     IsNullable BIT,
     IsPrimaryKey BIT,
     IsForeignKey BIT,
-    ReferencedTable NVARCHAR(255),
-    ForeignKeyAction NVARCHAR(50)
+    ReferencedTable NVARCHAR(255)
 );
 GO
 
@@ -41,11 +40,7 @@ BEGIN
         c.is_nullable AS IsNullable,
         CASE WHEN ic.column_id IS NOT NULL THEN 1 ELSE 0 END AS IsPrimaryKey,
         CASE WHEN fc.parent_column_id IS NOT NULL THEN 1 ELSE 0 END AS IsForeignKey,
-        rt.name AS ReferencedTable,
-        CASE
-		WHEN fk.delete_referential_action_desc IS NOT NULL THEN fk.delete_referential_action_desc
-			ELSE 'NO_ACTION' 
-		END AS ForeignKeyAction
+        rt.name AS ReferencedTable
     FROM
         sys.tables t
     INNER JOIN
@@ -63,108 +58,104 @@ BEGIN
     LEFT JOIN
         sys.tables rt ON fc.referenced_object_id = rt.object_id
 END;
+GO
 
 EXEC dbo.GenerateSchemaHistory;
 
 SELECT * FROM  SchemaHistory;
 
 GO
--- Criação da view que apresenta os dados relativos à execução mais recente
-CREATE VIEW dbo.LatestSchemaHistory
-AS
-SELECT
-    s.*
-FROM
-    SchemaHistory s
-INNER JOIN
-    (
-        SELECT
-            TableName,
-            MAX(ChangeDate) AS LatestChangeDate
-        FROM
-            SchemaHistory
-        GROUP BY
-            TableName
-    ) latest ON s.TableName = latest.TableName AND s.ChangeDate = latest.LatestChangeDate;
-
-	GO
-
-	SELECT * FROM dbo.LatestSchemaHistory;
 
 
 
 
-
-
-
-
-
-
-	go
-
-
-
-
--- DROP existing procedure
-DROP PROCEDURE IF EXISTS dbo.GetRecordCount;
+-- Drop the table if it exists
+IF OBJECT_ID('TableStatisticsHistory', 'U') IS NOT NULL
+    DROP TABLE TableStatisticsHistory;
 GO
 
--- CREATE the modified procedure
-CREATE PROCEDURE dbo.GetRecordCount
-    @TableName NVARCHAR(255)
+-- Create table to store table statistics history
+CREATE TABLE TableStatisticsHistory (
+    ExecutionDate DATETIME,
+    TableName NVARCHAR(255),
+    RecordCount INT,
+    SpaceUsedKB INT
+);
+GO
+
+-- Drop the procedure if it exists
+IF OBJECT_ID('dbo.UpdateTableStatistics', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.UpdateTableStatistics;
+GO
+
+-- Stored Procedure to update table statistics and maintain history
+CREATE PROCEDURE dbo.UpdateTableStatistics
 AS
 BEGIN
-    DECLARE @Sql NVARCHAR(MAX);
-    DECLARE @RecordCount INT;
+    -- Declare variables
+    DECLARE @tableName NVARCHAR(255)
+    DECLARE @sql NVARCHAR(MAX)
 
-    SET @Sql = 'SELECT @RecordCount = COUNT(*) FROM ' + @TableName;
-     EXEC sp_executesql @Sql, N'@RecordCount INT OUTPUT', @RecordCount OUTPUT;
-
-     SELECT @TableName, @RecordCount
-
-END;
-GO
-
--- DROP existing procedure
-DROP PROCEDURE IF EXISTS dbo.GetRecordCountAllTables;
-GO
-
--- CREATE the modified procedure
-CREATE PROCEDURE dbo.GetRecordCountAllTables
-AS
-BEGIN
-    DECLARE @TableName NVARCHAR(255);
-    DECLARE @Sql NVARCHAR(MAX);
-
-    -- Criar tabela temporária para armazenar os resultados
-    CREATE TABLE #TempResults (
-        TableName NVARCHAR(255),
-        RecordCount INT
+    -- Create a temporary table to store current statistics
+    CREATE TABLE #TempTableStatistics (
+        Name NVARCHAR(100),
+        Rows INT,
+        Reserved NVARCHAR(100),
+        Data NVARCHAR(100),
+        Index_Size NVARCHAR(100),
+        Unused NVARCHAR(100)
     );
 
-    DECLARE table_cursor CURSOR FOR
-    SELECT TABLE_NAME
-    FROM INFORMATION_SCHEMA.TABLES
-    WHERE TABLE_TYPE = 'BASE TABLE';
+    -- Iterate through each table in the database
+    DECLARE tableCursor CURSOR FOR
+    SELECT t.name
+    FROM sys.tables t;
 
-    OPEN table_cursor;
-    FETCH NEXT FROM table_cursor INTO @TableName;
+    OPEN tableCursor;
+    FETCH NEXT FROM tableCursor INTO @tableName;
 
     WHILE @@FETCH_STATUS = 0
     BEGIN
-        SET @Sql = '
-            INSERT INTO #TempResults
-            EXEC GetRecordCount ''' + @TableName + '''
+        -- Generate dynamic SQL to get table statistics using sp_spaceused
+        SET @sql = N'
+            INSERT INTO #TempTableStatistics
+            EXEC sp_spaceused ''' + @tableName + ''';
         ';
-        EXEC sp_executesql @Sql;
-        FETCH NEXT FROM table_cursor INTO @TableName;
+
+        -- Execute dynamic SQL
+        EXEC sp_executesql @sql;
+
+        -- Insert relevant data into the #TempTableStatistics table
+        INSERT INTO #TempTableStatistics (Name, Rows)
+        SELECT Name, Rows FROM #TempTableStatistics;
+
+        -- Clear the temporary table for the next iteration
+        DELETE FROM #TempTableStatistics;
+
+        FETCH NEXT FROM tableCursor INTO @tableName;
     END
 
-    SELECT * FROM #TempResults;
-    DROP TABLE #TempResults;
-    CLOSE table_cursor;
-    DEALLOCATE table_cursor;
+    -- Insert results into history table
+    INSERT INTO TableStatisticsHistory
+    SELECT
+        GETDATE() AS ExecutionDate,
+        Name AS TableName,
+        Rows AS RecordCount,
+        CAST(LEFT(Data, LEN(Data) - 3) AS INT) AS SpaceUsedKB
+    FROM
+        #TempTableStatistics;
+
+    -- Drop temporary table
+    DROP TABLE #TempTableStatistics;
+
+    -- Close and deallocate the cursor
+    CLOSE tableCursor;
+    DEALLOCATE tableCursor;
 END;
+GO
 
+-- Execute the stored procedure
+EXEC dbo.UpdateTableStatistics;
 
-EXEC dbo.GetRecordCountAllTables;
+-- View the table statistics history
+SELECT * FROM TableStatisticsHistory;

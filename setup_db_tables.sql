@@ -15,6 +15,9 @@ DROP SCHEMA IF EXISTS Sales
 GO
 DROP SCHEMA IF EXISTS Production
 GO
+DROP SCHEMA IF EXISTS Person
+GO
+
 
 -- Create the Sales schema
 CREATE SCHEMA Sales;
@@ -24,14 +27,22 @@ GO
 CREATE SCHEMA Production;
 GO
 
+-- Create the Person schema
+CREATE SCHEMA Person;
+GO
+
+-- Create the Logs schema
+CREATE SCHEMA Logs;
+GO
+
 -- Drop the tables if they exist
 DROP TABLE IF EXISTS Sales.SalesOrderDetail;
 DROP TABLE IF EXISTS Production.Product;
 DROP TABLE IF EXISTS Production.Description;
 DROP TABLE IF EXISTS Sales.SalesOrderHeader;
-DROP TABLE IF EXISTS Sales.Customer;
+DROP TABLE IF EXISTS Person.Customer;
 DROP TABLE IF EXISTS Sales.Address;
-DROP TABLE IF EXISTS Sales.CustomerAddress;
+DROP TABLE IF EXISTS Person.Loggin;
 DROP TABLE IF EXISTS Sales.SalesTerritory;
 DROP TABLE IF EXISTS Sales.Currency;
 DROP TABLE IF EXISTS Production.SubCategory;
@@ -70,23 +81,8 @@ CREATE TABLE Sales.SalesTerritory (
   SalesTerritoryGroup VARCHAR(255)
 );
 
--- Address Table
-CREATE TABLE Sales.Address (
-  AddressKey INT IDENTITY(1,1) PRIMARY KEY,
-  StateProvince VARCHAR(50),
-  CountryRegion VARCHAR(50),
-  City VARCHAR(50),
-  AddressLine2 VARCHAR(255),
-  AddressLine1 VARCHAR(255),
-  PostalCode Varchar(50),
-  StateProvinceName VARCHAR(255),
-  CountryRegionName VARCHAR(255),
-  SalesTerritoryKey INT,
-  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey),
-);
-
 -- Customer Table
-CREATE TABLE Sales.Customer (
+CREATE TABLE Person.Customer (
   CustomerKey INT IDENTITY(1,1) PRIMARY KEY,
   LastName VARCHAR(255),
   MiddleName VARCHAR(50),
@@ -106,17 +102,28 @@ CREATE TABLE Sales.Customer (
   NumberCarsOwned TINYINT,
   Phone VARCHAR(50),
   DateFirstPurchase DATE,
-  CommuteDistance VARCHAR(50)
+  CommuteDistance VARCHAR(50),
 );
 
--- CustomerAddress Table
-CREATE TABLE Sales.CustomerAddress (
-    CustomerAddressKey INT IDENTITY(1,1) PRIMARY KEY,
-    CustomerKey INT,
-    AddressKey INT,
-    CONSTRAINT FK_CustomerAddress_Customer FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
-    CONSTRAINT FK_CustomerAddress_Address FOREIGN KEY (AddressKey) REFERENCES Sales.Address(AddressKey)
+
+-- Address Table
+CREATE TABLE Sales.Address (
+  AddressKey INT IDENTITY(1,1) PRIMARY KEY,
+  StateProvince VARCHAR(50),
+  CountryRegion VARCHAR(50),
+  City VARCHAR(50),
+  AddressLine2 VARCHAR(255),
+  AddressLine1 VARCHAR(255),
+  PostalCode VARCHAR(50),
+  StateProvinceName VARCHAR(255),
+  CountryRegionName VARCHAR(255),
+  SalesTerritoryKey INT,
+  CustomerKey INT,
+  FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey),
+  FOREIGN KEY (CustomerKey) REFERENCES Person.Customer(CustomerKey)
 );
+
+
 
 -- Description Table
 CREATE TABLE Production.Description (
@@ -168,7 +175,7 @@ CREATE TABLE Sales.SalesOrderHeader (
   CustomerKey INT,
   CurrencyKey TINYINT,
   SalesTerritoryKey INT,
-  FOREIGN KEY (CustomerKey) REFERENCES Sales.Customer(CustomerKey),
+  FOREIGN KEY (CustomerKey) REFERENCES Person.Customer(CustomerKey),
   FOREIGN KEY (CurrencyKey) REFERENCES Sales.Currency(CurrencyKey),
   FOREIGN KEY (SalesTerritoryKey) REFERENCES Sales.SalesTerritory(SalesTerritoryKey)
 );
@@ -193,6 +200,23 @@ CREATE TABLE Sales.SalesOrderDetail (
 );
 
 
+CREATE TABLE Logs.Loggin (
+    LogID INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerPassword NVARCHAR(255),
+    CustomerID INT,
+    SecurityQuestion NVARCHAR(255),
+    SecurityAnswer NVARCHAR(255)
+);
+
+CREATE TABLE Logs.sentEmails (
+    sentEmailID INT IDENTITY(1,1) PRIMARY KEY,
+    recipientEmail NVARCHAR(255),
+    emailMessage NVARCHAR(MAX),
+    EmailTime DATETIME2 DEFAULT GETDATE()
+);
+
+
+
 -- Data Migration
 
 DROP PROCEDURE IF EXISTS Production.MigrateCategory;
@@ -202,10 +226,9 @@ DROP PROCEDURE IF EXISTS Production.MigrateProduct;
 DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory;
 DROP PROCEDURE IF EXISTS Sales.MigrateAddress;
 DROP PROCEDURE IF EXISTS Sales.MigrateCurrency;
-DROP PROCEDURE IF EXISTS Sales.MigrateCustomer;
+DROP PROCEDURE IF EXISTS Person.MigrateCustomer;
 DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderHeader;
 DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderDetail;
-DROP PROCEDURE IF EXISTS Sales.MigrateCustomerAddress;
 GO
 
 CREATE PROCEDURE Production.MigrateCategory
@@ -279,20 +302,41 @@ GO
 EXEC Sales.MigrateSalesTerritory;
 GO
 
+-- Migration Procedure for Customer
+CREATE PROCEDURE Person.MigrateCustomer
+AS
+BEGIN
+    INSERT INTO Person.Customer (LastName, FirstName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance)
+    SELECT DISTINCT
+        c.LastName, c.FirstName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome,
+        c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag,
+        c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance
+    FROM
+        AdventureWorksOldData.Person.Customer c;
+END;
+GO
+
+EXEC Person.MigrateCustomer;
+GO
+
 
 CREATE PROCEDURE Sales.MigrateAddress
 AS
 BEGIN
-    INSERT INTO Sales.Address (StateProvince, CountryRegion, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName, SalesTerritoryKey)
-    SELECT DISTINCT  a.StateProvinceCode, a.CountryRegionCode, a.City, a.AddressLine1, a.AddressLine2, a.PostalCode, a.StateProvinceName, a.CountryRegionName, st.SalesTerritoryKey
+    INSERT INTO Sales.Address (StateProvince, CountryRegion, City, AddressLine1, AddressLine2, PostalCode, StateProvinceName, CountryRegionName, SalesTerritoryKey, CustomerKey)
+    SELECT DISTINCT
+        a.StateProvinceCode, a.CountryRegionCode, a.City, a.AddressLine1, a.AddressLine2, a.PostalCode,
+        a.StateProvinceName, a.CountryRegionName, st.SalesTerritoryKey, a.CustomerKey
     FROM AdventureWorksOldData.Person.Customer a
-    INNER JOIN Sales.SalesTerritory st ON a.SalesTerritoryKey = st.SalesTerritoryKey;
+    LEFT JOIN Person.Customer c ON a.CustomerKey = c.CustomerKey
+    INNER JOIN Sales.SalesTerritory st ON a.SalesTerritoryKey = st.SalesTerritoryKey
+    WHERE c.CustomerKey IS NOT NULL;
 END;
 GO
 
+
 EXEC Sales.MigrateAddress;
 GO
-
 
 
 CREATE PROCEDURE Sales.MigrateCurrency 
@@ -308,43 +352,6 @@ GO
 
 
 
--- Migration Procedure for Customer
-CREATE PROCEDURE Sales.MigrateCustomer
-AS
-BEGIN
-    INSERT INTO Sales.Customer (LastName, FirstName, NameStyle, BirthDate, MaritalStatus, Gender, EmailAddress, YearlyIncome, Title, MiddleName, TotalChildren, NumberChildrenAtHome, EducationLevel, Occupation, HouseOwnerFlag, NumberCarsOwned, Phone, DateFirstPurchase, CommuteDistance)
-    SELECT DISTINCT
-        c.LastName, c.FirstName, c.NameStyle, c.BirthDate, c.MaritalStatus, c.Gender, c.EmailAddress, c.YearlyIncome,
-        c.Title, c.MiddleName, c.TotalChildren, c.NumberChildrenAtHome, c.Education, c.Occupation, c.HouseOwnerFlag,
-        c.NumberCarsOwned, c.Phone, c.DateFirstPurchase, c.CommuteDistance
-    FROM
-        AdventureWorksOldData.Person.Customer c;
-END;
-GO
-
-EXEC Sales.MigrateCustomer;
-GO
-
-
-
--- Migration Procedure for CustomerAddress
-CREATE PROCEDURE Sales.MigrateCustomerAddress
-AS
-BEGIN
-	INSERT INTO Sales.CustomerAddress(CustomerKey)
-		SELECT sc.CustomerKey FROM Sales.Customer sc
-		JOIN Sales.Customer c ON sc.CustomerKey = c.CustomerKey; 
-
-	INSERT INTO Sales.CustomerAddress(AddressKey)
-		SELECT a.AddressKey FROM Sales.Address a
-		JOIN Sales.Address ad ON ad.AddressKey = a.AddressKey; 
-END;
-GO
-
-EXEC Sales.MigrateCustomerAddress;
-GO
- 
- 
 
 CREATE PROCEDURE Sales.MigrateSalesOrderHeader
 AS
@@ -352,7 +359,7 @@ BEGIN
 	INSERT INTO Sales.SalesOrderHeader(SalesOrderNumber, DueDate, OrderDate, CustomerPONumber, CarrierTrackingNumber, OrderDateKey, DueDateKey, RevisionNumber, ShipDateKey, ShipDate, CustomerKey, CurrencyKey, SalesTerritoryKey)
 	SELECT DISTINCT s.SalesOrderNumber, s.DueDate, s.OrderDate, s.CustomerPONumber, s.CarrierTrackingNumber, s.OrderDateKey, s.DueDateKey, s.RevisionNumber, s.ShipDateKey, s.ShipDate, s.CustomerKey, s.CurrencyKey, s.SalesTerritoryKey 
 	FROM AdventureWorksOldData.Sales.Sales7 s
-	JOIN Sales.Customer c ON s.CustomerKey = c.CustomerKey 
+	JOIN Person.Customer c ON s.CustomerKey = c.CustomerKey 
 	JOIN Sales.Currency cy ON s.CurrencyKey = cy.CurrencyKey
 	JOIN Sales.SalesTerritory st ON s.SalesTerritoryKey = st.SalesTerritoryKey ;
 END;
@@ -397,9 +404,8 @@ SELECT * FROM Sales.SalesTerritory;
 SELECT * FROM Sales.Address;
 
 -- Customer Table
-SELECT * FROM Sales.Customer;
+SELECT * FROM Person.Customer;
 
-SELECT * FROM Sales.CustomerAddress;
 
 -- SalesOrderHeader Table
 SELECT * FROM Sales.SalesOrderHeader;
@@ -413,7 +419,8 @@ SELECT * FROM Production.Product;
 -- SalesOrderDetail Table
 SELECT * FROM Sales.SalesOrderDetail;
 
-
+SELECT * FROM Logs.Loggin;
+SELECT * FROM Logs.sentEmails;
 
 -- Count records in Category Table
 SELECT COUNT(*) AS NumeroDeRegistos FROM Production.Category;
@@ -431,7 +438,7 @@ SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.SalesTerritory;
 SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.Address;
 
 -- Count records in Customer Table
-SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.Customer;
+SELECT COUNT(*) AS NumeroDeRegistos FROM Person.Customer;
 
 -- Count records in SalesOrderHeader Table
 SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.SalesOrderHeader;
@@ -444,3 +451,36 @@ SELECT COUNT(*) AS NumeroDeRegistos FROM Production.Product;
 
 -- Count records in SalesOrderDetail Table
 SELECT COUNT(*) AS NumeroDeRegistos FROM Sales.SalesOrderDetail;
+
+
+
+
+
+
+
+DROP TRIGGER IF EXISTS GenerateLoggin;
+GO 
+CREATE TRIGGER GenerateLoggin
+ON Person.Customer
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;    
+
+    INSERT INTO Logs.Loggin (CustomerPassword, CustomerID, SecurityQuestion, SecurityAnswer)
+    SELECT
+        dbo.GenerateRandomPassword(),
+        CustomerKey,
+        'Quantos filhos tem?',
+        NumberChildrenAtHome
+    FROM inserted;
+
+    -- Logic to send emails
+    INSERT INTO logs.sentEmails (recipientEmail, emailMessage, EmailTime)
+    SELECT
+        EmailAddress,
+           'Olá. Mandamos o email para informamar que criou-se um novo acesso de Login com este Email. A sua password corresondente é ' + cast(dbo.GenerateRandomPassword() as nvarchar(200)),
+        GETDATE()
+    FROM inserted;
+END;
+GO
