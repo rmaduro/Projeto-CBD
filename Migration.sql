@@ -2,11 +2,11 @@
  *	UC: Complementos de Bases de Dados 2023/2024
  *
  *	Turma: 2ºL_EI-SW-03 (15:00h - 17:00h)
- *		Nome Aluno (nº aluno)
- *		Nome Aluno (nº aluno)
- *	    Nome Aluno (nº aluno)
+ *		Nome Aluno: Ricardo Pinto (nº 202200637)
+ *		Nome Aluno: Rodrigo Maduro (nº 202200166)
+ *	    Nome Aluno: Rodrigo Arraiado (nº 202100436)
  *	
- *			Metadados
+ *			Migration
  ********************************************/
 
 -- Section: Data Migration

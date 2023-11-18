@@ -1,6 +1,15 @@
 USE AdventureWorks;
 GO
-
+/********************************************
+ *	UC: Complementos de Bases de Dados 2023/2024
+ *
+ *	Turma: 2ºL_EI-SW-03 (15:00h - 17:00h)
+ *		Nome Aluno: Ricardo Pinto (nº 202200637)
+ *		Nome Aluno: Rodrigo Maduro (nº 202200166)
+ *	    Nome Aluno: Rodrigo Arraiado (nº 202100436)
+ *	
+ *			Procedures
+ ********************************************/
 
 -- Drop the existing view and function
 DROP VIEW IF EXISTS getNumber;
