@@ -9,8 +9,9 @@
  *			Queries
  ********************************************/
 
--- Section: QuerySet
 
+-- Section: QuerySet
+-- Adventure Works
 USE AdventureWorks;
 
 -- Query: Total monetário de vendas por ano
@@ -26,6 +27,8 @@ GROUP BY
 ORDER BY
     Year;
 
+
+--AdventureWorksOldData
 
 
 

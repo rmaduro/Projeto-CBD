@@ -6,7 +6,7 @@
  *		Nome Aluno: Rodrigo Maduro (nº 202200166)
  *	    Nome Aluno: Rodrigo Arraiado (nº 202100436)
  *	
- *			Schemas
+ *			Metadata
  *  
  ********************************************/
 
@@ -33,6 +33,8 @@ BEGIN
     );
 END;
 
+
+
 -- Drop GenerateHistoryEntries procedure if it exists
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('GenerateHistoryEntries') AND type IN (N'P', N'PC'))
 BEGIN
@@ -44,11 +46,16 @@ GO
 CREATE PROCEDURE GenerateHistoryEntries
 AS
 BEGIN
+    DECLARE @MaxExecutionDateTime DATETIME;
+
+    -- Get the maximum ExecutionDateTime from SchemaHistory
+    SELECT @MaxExecutionDateTime = COALESCE(MAX(ExecutionDateTime), '19000101') FROM SchemaHistory;
+
     -- Check for changes since the last execution
     IF EXISTS (
         SELECT 1
         FROM sys.tables t
-        WHERE t.modify_date > COALESCE((SELECT MAX(ExecutionDateTime) FROM SchemaHistory), '19000101')
+        WHERE t.modify_date > @MaxExecutionDateTime
     )
     BEGIN
         -- Insert into history
@@ -75,12 +82,16 @@ BEGIN
         LEFT JOIN sys.tables ref ON fk.referenced_object_id = ref.object_id
         LEFT JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
         LEFT JOIN sys.columns rc ON fkc.referenced_column_id = rc.column_id
-        WHERE t.modify_date > COALESCE((SELECT MAX(ExecutionDateTime) FROM SchemaHistory), '19000101');
+        WHERE t.modify_date > @MaxExecutionDateTime;
+
+        -- Update the maximum ExecutionDateTime for the next iteration
+        SELECT @MaxExecutionDateTime = MAX(ExecutionDateTime) FROM SchemaHistory;
     END;
 END;
 
 -- Execute the stored procedure
 EXEC GenerateHistoryEntries;
+
 
 -- Drop the view if it exists
 DROP VIEW IF EXISTS vw_LatestHistoriyData;
@@ -89,6 +100,7 @@ GO
 -- Create a view to get the latest historical data
 CREATE VIEW vw_LatestHistoriyData AS
 SELECT TOP 1 * FROM SchemaHistory ORDER BY ExecutionDateTime DESC;
+GO
 
 -- Execute the stored procedure again
 EXEC GenerateHistoryEntries;

@@ -11,42 +11,6 @@ GO
  *			Procedures
  ********************************************/
 
--- Drop the existing view and function
-DROP VIEW IF EXISTS getNumber;
-DROP FUNCTION IF EXISTS dbo.GenerateRandomPassword;
-GO
-
--- Create a view to generate a random number between 0 and 1
-CREATE VIEW getNumber AS 
-SELECT CAST(RAND() * 1000000 AS INT) AS new_number;
-GO
-
--- Create the function to generate a password
-CREATE FUNCTION dbo.GenerateRandomPassword()
-RETURNS INT
-AS
-BEGIN
-    DECLARE @password INT;
-
-    -- Retrieve the random number from the view
-    SET @password = (
-        SELECT new_number
-        FROM getNumber
-    );
-
-    SET @password = @password * 2;
-
-    RETURN @password;
-END;
-GO
-
--- Test the function
-SELECT dbo.GenerateRandomPassword() AS SenhaAleatoria;
-
-
-GO
-
-
 
 
 -- Procedure to add a new category
@@ -405,46 +369,3 @@ BEGIN
 END;
 GO
 
-
--- Procedure to add a new sales order detail
-CREATE PROCEDURE Sales.AddSalesOrderDetail
-  @SalesOrderNumber VARCHAR(50),
-  @TaxAmt INT,
-  @SalesAmount FLOAT,
-  @SalesOrderLineNumber TINYINT,
-  @DiscountAmount TINYINT,
-  @UnitPriceDiscountPct TINYINT,
-  @OrderQuantity TINYINT,
-  @ProductStandardCost FLOAT,
-  @UnitPrice FLOAT,
-  @TotalProductCost FLOAT,
-  @ExtendedAmount FLOAT,
-  @ProductKey INT
-AS
-BEGIN
-    BEGIN TRY
-        INSERT INTO Sales.SalesOrderDetail (SalesOrderNumber, TaxAmt, SalesAmount, SalesOrderLineNumber, DiscountAmount, UnitPriceDiscountPct, OrderQuantity, ProductStandardCost, UnitPrice, TotalProductCost, ExtendedAmount, ProductKey)
-        VALUES (@SalesOrderNumber, @TaxAmt, @SalesAmount, @SalesOrderLineNumber, @DiscountAmount, @UnitPriceDiscountPct, @OrderQuantity, @ProductStandardCost, @UnitPrice, @TotalProductCost, @ExtendedAmount, @ProductKey);
-    END TRY
-    BEGIN CATCH
-        -- Add error handling logic here
-        PRINT ERROR_MESSAGE();
-    END CATCH
-END;
-GO
-
--- Procedure to remove a sales order detail
-CREATE PROCEDURE Sales.RemoveSalesOrderDetail
-  @SalesOrderKey INT
-AS
-BEGIN
-    BEGIN TRY
-        DELETE FROM Sales.SalesOrderDetail
-        WHERE SalesOrderKey = @SalesOrderKey;
-    END TRY
-    BEGIN CATCH
-        -- Add error handling logic here
-        PRINT ERROR_MESSAGE();
-    END CATCH
-END;
-GO
