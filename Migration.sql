@@ -264,19 +264,6 @@ GO
 
 
 
--- Drop existing procedures for data migration
-DROP PROCEDURE IF EXISTS Production.MigrateCategory;
-DROP PROCEDURE IF EXISTS Production.MigrateSubCategory;
-DROP PROCEDURE IF EXISTS Production.MigrateDescription;
-DROP PROCEDURE IF EXISTS Production.MigrateProduct;
-DROP PROCEDURE IF EXISTS Sales.MigrateSalesTerritory;
-DROP PROCEDURE IF EXISTS Sales.MigrateAddress;
-DROP PROCEDURE IF EXISTS Sales.MigrateCurrency;
-DROP PROCEDURE IF EXISTS Person.MigrateCustomer;
-DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderHeader;
-DROP PROCEDURE IF EXISTS Sales.MigrateSalesOrderDetail;
-GO
-
 
 -- Section: Select Statements
 

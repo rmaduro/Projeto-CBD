@@ -8,14 +8,13 @@
  *	
  *			Database
  ********************************************/
-
--- Section: Database Initialization
+ -- Section: Database Initialization
 USE AdventureWorks;
 
-
--- Drop the existing view and function
+-- Drop the existing view, function, and trigger
 DROP VIEW IF EXISTS getNumber;
 DROP FUNCTION IF EXISTS dbo.GenerateRandomPassword;
+DROP TRIGGER IF EXISTS GenerateLoggin;
 GO
 
 -- Create a view to generate a random number between 0 and 1
@@ -41,21 +40,6 @@ BEGIN
     RETURN @password;
 END;
 GO
-
--- Test the function
-SELECT dbo.GenerateRandomPassword() AS SenhaAleatoria;
-
-
-GO
-
-
-
--- Section: Trigger Definition
--- Drop trigger if it exists
-DROP TRIGGER IF EXISTS GenerateLoggin;
-GO 
-
--- Create Trigger
 CREATE TRIGGER GenerateLoggin
 ON Person.Customer
 AFTER INSERT
@@ -69,17 +53,96 @@ BEGIN
     SELECT
         dbo.GenerateRandomPassword(),
         CustomerKey,
-        'Quantos filhos tem?',
+        'How many children do you have?',
         NumberChildrenAtHome
     FROM inserted;
 
-    -- Logic to send emails
     -- Insert into sentEmails table
     INSERT INTO logs.sentEmails (recipientEmail, emailMessage, EmailTime)
     SELECT
         EmailAddress,
-           'Olá. Mandamos o email para informamar que criou-se um novo acesso de Login com este Email. A sua password corresondente é ' + CAST(dbo.GenerateRandomPassword() AS NVARCHAR(200)),
+        'Hello. We sent this email to inform you that a new login access has been created with this email. Your corresponding password is ' + CAST(dbo.GenerateRandomPassword() AS NVARCHAR(200)),
         GETDATE()
     FROM inserted;
 END;
 GO
+
+-- Drop the stored procedure if it exists
+IF OBJECT_ID('dbo.RecoverPassword', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.RecoverPassword;
+GO
+
+
+-- Section: Password Recovery
+CREATE PROCEDURE dbo.RecoverPassword
+    @EmailAddress NVARCHAR(255),
+    @SecurityQuestion NVARCHAR(255),
+    @SecurityAnswer NVARCHAR(255)
+AS
+BEGIN
+    DECLARE @RecoveredPassword NVARCHAR(255);
+
+    -- Check security question and answer in the Loggin table
+    IF EXISTS (
+        SELECT 1
+        FROM Logs.Loggin l
+        WHERE l.CustomerID = (
+            SELECT CustomerKey
+            FROM Person.Customer
+            WHERE EmailAddress = @EmailAddress
+        )
+        AND l.SecurityQuestion = @SecurityQuestion
+        AND l.SecurityAnswer = @SecurityAnswer
+    )
+    BEGIN
+        -- Generate a new password
+        SET @RecoveredPassword = CAST(dbo.GenerateRandomPassword() AS NVARCHAR(255));
+
+        -- Update the password in the Loggin table
+        UPDATE Logs.Loggin
+        SET CustomerPassword = @RecoveredPassword
+        WHERE CustomerID = (
+            SELECT CustomerKey
+            FROM Person.Customer
+            WHERE EmailAddress = @EmailAddress
+        );
+
+        -- Logic to send recovery email
+        INSERT INTO logs.sentEmails (recipientEmail, emailMessage, EmailTime)
+        SELECT
+            @EmailAddress,
+            'Hello. We sent this email to inform you that you requested password recovery. Your new password is ' + @RecoveredPassword,
+            GETDATE();
+
+			 PRINT 'Recovery email sent successfully.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'There was an error.';
+    END;
+END;
+GO
+
+
+
+
+
+-- Test Query
+SELECT TOP 1 CustomerPassword
+FROM Logs.Loggin
+WHERE CustomerID = (
+    SELECT CustomerKey
+    FROM Person.Customer
+    WHERE EmailAddress = 'ben2@adventure-works.com'
+)
+ORDER BY LogID DESC;
+
+-- Test Procedure Execution
+EXEC dbo.RecoverPassword 'ben2@adventure-works.com', 'Quantos filhos tem?', '3';
+
+
+-- Select all sent emails and order by time
+SELECT *
+FROM logs.sentEmails
+ORDER BY EmailTime DESC;
+

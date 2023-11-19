@@ -11,7 +11,6 @@
 
 
 -- Section: QuerySet
--- Adventure Works
 USE AdventureWorks;
 
 -- Query: Total monetário de vendas por ano
@@ -26,10 +25,6 @@ GROUP BY
     YEAR(soh.OrderDate)
 ORDER BY
     Year;
-
-
---AdventureWorksOldData
-
 
 
 
@@ -59,9 +54,6 @@ ORDER BY
 
 
 
-
-
-
 -- Query: Número de produtos (vendidos) por Categoria
 SELECT
     c.CategoryKey,
@@ -81,7 +73,6 @@ GROUP BY
     c.CategoryKey, c.FrenchCategoryName, c.EnglishCategoryName, c.SpanishCategoryName
 ORDER BY
     c.CategoryKey;
-
 
 
 
